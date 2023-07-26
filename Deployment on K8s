@@ -1,0 +1,36 @@
+node{
+    
+    stage("Git Clone"){
+        
+        git url: 'https://github.com/mangeshnag9651/devops-automation.git', branch: 'main'
+    }
+    stage(" Maven Clean Package"){
+      def mavenHome =  tool name: "Maven", type: "maven"
+       sh "${mavenHome}/bin/mvn clean package"
+      
+    }
+    stage("Build Docker Image"){
+        sh "docker build -t mangesh9651/devops-integration ."
+    }
+    stage('Push Docker Image'){
+        
+        withCredentials([string(credentialsId: 'Dockerhubpwd', variable: 'Dockerhubpwd')]) {
+            sh "docker login -u mangesh9651 -p ${Dockerhubpwd}"
+         }
+         sh "docker push mangesh9651/devops-integration"
+    }
+    stage('Deploy to k8s'){
+        sshagent(['minikube']) {
+            sh "scp -o StrictHostKeyChecking=no deploymentservice.yaml ubuntu@34.238.117.39:/home/ubuntu/"
+                 try{
+                    sh "ssh ubuntu@34.238.117.39 kubectl apply -f ."
+                }catch(error){
+                    sh "ssh ubuntu@34.238.117.39 kubectl create -f ."
+                }
+                
+            
+        }
+        
+    }
+    
+}
